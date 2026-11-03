@@ -22,12 +22,19 @@
         </p>
       </section>
 
-      <div class="panels">
-        <section class="panel" aria-labelledby="hardware-title">
-          <h2 class="panel__title" id="hardware-title">HARDWARE</h2>
-          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
-        </section>
+      <section class="panel panel--hardware" aria-labelledby="hardware-title">
+        <h2 class="panel__title" id="hardware-title">HARDWARE</h2>
 
+        <div class="buy-mode" role="group" aria-label="Quantité à acheter">
+          <button type="button" class="buy-mode__button" data-mode="1" aria-pressed="true">×1</button>
+          <button type="button" class="buy-mode__button" data-mode="10" aria-pressed="false">×10</button>
+          <button type="button" class="buy-mode__button" data-mode="max" aria-pressed="false">MAX</button>
+        </div>
+
+        <ul class="machines" data-machines></ul>
+      </section>
+
+      <div class="panels">
         <section class="panel" aria-labelledby="upgrades-title">
           <h2 class="panel__title" id="upgrades-title">UPGRADES</h2>
           <p class="panel__placeholder">// module hors ligne — étape suivante</p>
