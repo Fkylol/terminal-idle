@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Terminal Idle — idle game de terminal rétro." />
+    <title>Terminal Idle</title>
+  </head>
+  <body>
+    <main class="terminal">
+      <header class="topbar">
+        <h1 class="topbar__title">TERMINAL IDLE</h1>
+        <p class="topbar__status">SYSTEM ONLINE</p>
+      </header>
+
+      <section class="balance" aria-label="Solde de crédits">
+        <p class="balance__label">SOLDE DE CRÉDITS</p>
+        <p class="balance__value" data-credits>0</p>
+        <p class="balance__rate">
+          PRODUCTION <span data-production>0</span> CR/s
+        </p>
+      </section>
+
+      <div class="panels">
+        <section class="panel" aria-labelledby="hardware-title">
+          <h2 class="panel__title" id="hardware-title">HARDWARE</h2>
+          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
+        </section>
+
+        <section class="panel" aria-labelledby="upgrades-title">
+          <h2 class="panel__title" id="upgrades-title">UPGRADES</h2>
+          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
+        </section>
+
+        <section class="panel" aria-labelledby="omega-title">
+          <h2 class="panel__title" id="omega-title">PROJECT OMEGA</h2>
+          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

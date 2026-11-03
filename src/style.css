@@ -1,0 +1,174 @@
+:root {
+  --bg: #050705;
+  --bg-panel: #070b07;
+  --green: #4fe087;
+  --green-strong: #7dffab;
+  --green-muted: #2e8b57;
+  --green-line: rgba(79, 224, 135, 0.22);
+  --green-glow: rgba(79, 224, 135, 0.35);
+
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  background-image: linear-gradient(180deg, rgba(79, 224, 135, 0.05), transparent 45%);
+  color: var(--green);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Léger effet scanline, sans image externe. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.28) 3px
+  );
+  opacity: 0.35;
+}
+
+.terminal {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 40px) clamp(14px, 4vw, 32px) clamp(32px, 6vw, 64px);
+}
+
+/* ---- En-tête ---- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--green-line);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: clamp(1.05rem, 3.4vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--green-strong);
+  text-shadow: 0 0 10px var(--green-glow);
+}
+
+.topbar__status {
+  margin: 0;
+  font-size: clamp(0.7rem, 2.6vw, 0.8rem);
+  letter-spacing: 0.18em;
+  color: var(--green-muted);
+}
+
+/* ---- Solde ---- */
+
+.balance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: clamp(20px, 5vw, 36px) 0;
+  padding: clamp(16px, 4vw, 28px) clamp(12px, 4vw, 24px);
+  border: 1px solid var(--green-line);
+  background-color: var(--bg-panel);
+  text-align: center;
+}
+
+.balance__label {
+  margin: 0;
+  font-size: clamp(0.65rem, 2.4vw, 0.75rem);
+  letter-spacing: 0.24em;
+  color: var(--green-muted);
+}
+
+.balance__value {
+  margin: 0;
+  font-size: clamp(2.4rem, 13vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--green-strong);
+  text-shadow: 0 0 18px var(--green-glow);
+  overflow-wrap: anywhere;
+}
+
+.balance__rate {
+  margin: 0;
+  font-size: clamp(0.8rem, 3vw, 0.95rem);
+  letter-spacing: 0.1em;
+  color: var(--green);
+}
+
+.balance__rate span {
+  color: var(--green-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Panneaux ---- */
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: clamp(12px, 3vw, 18px);
+}
+
+.panel {
+  padding: clamp(14px, 3vw, 20px);
+  border: 1px solid var(--green-line);
+  background-color: var(--bg-panel);
+  min-width: 0;
+}
+
+.panel__title {
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--green-line);
+  font-size: clamp(0.72rem, 2.6vw, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--green-strong);
+}
+
+.panel__placeholder {
+  margin: 0;
+  font-size: clamp(0.72rem, 2.6vw, 0.82rem);
+  line-height: 1.6;
+  color: var(--green-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Base des futurs boutons : rectangulaires, sans arrondi. */
+button {
+  font-family: inherit;
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .balance__value {
+    transition: color 120ms linear;
+  }
+}
