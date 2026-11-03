@@ -14,6 +14,19 @@
         <p class="topbar__status">SYSTEM ONLINE</p>
       </header>
 
+      <div class="report" data-report hidden role="status" aria-live="polite">
+        <div class="report__head">
+          <p class="report__title">[SYSTEM RESTORED]</p>
+          <button type="button" class="report__close" data-report-close aria-label="Fermer le rapport">[X]</button>
+        </div>
+        <dl class="report__lines">
+          <div><dt>Temps absent</dt><dd data-report-absent></dd></div>
+          <div><dt>Temps crédité</dt><dd data-report-credited></dd></div>
+          <div><dt>Crédits gagnés</dt><dd data-report-gain></dd></div>
+        </dl>
+        <p class="report__cap" data-report-cap hidden>Plafond appliqué</p>
+      </div>
+
       <section class="balance" aria-label="Solde de crédits">
         <p class="balance__label">SOLDE DE CRÉDITS</p>
         <p class="balance__value" data-credits>0</p>
@@ -37,7 +50,7 @@
       <div class="panels">
         <section class="panel" aria-labelledby="upgrades-title">
           <h2 class="panel__title" id="upgrades-title">UPGRADES</h2>
-          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
+          <ul class="upgrades" data-upgrades></ul>
         </section>
 
         <section class="panel" aria-labelledby="omega-title">
@@ -45,6 +58,10 @@
           <p class="panel__placeholder">// module hors ligne — étape suivante</p>
         </section>
       </div>
+
+      <footer class="footer">
+        <button type="button" class="link-button" data-reset>Nouvelle partie</button>
+      </footer>
     </main>
 
     <script type="module" src="/src/main.ts"></script>

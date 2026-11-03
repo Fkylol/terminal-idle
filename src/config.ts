@@ -5,8 +5,8 @@
  * Pour ajuster le jeu, il suffit de modifier ce fichier : l'interface et la
  * logique lisent ces valeurs au démarrage.
  *
- * Étape 1 : la configuration est préparée mais aucune mécanique d'achat,
- * d'amélioration ou de déblocage n'est encore branchée.
+ * Machines, déblocages, améliorations, sauvegarde et production hors ligne
+ * lisent tous leurs chiffres ici.
  */
 export const GAME_CONFIG = {
   /** Crédits possédés au tout début d'une partie. */
@@ -41,7 +41,7 @@ export const GAME_CONFIG = {
   upgrades: [
     {
       id: 'optimisation',
-      name: 'Optimisation',
+      name: 'Optimisation logicielle',
       bonusPerLevel: 0.1,
       basePrice: 25_000,
       priceMultiplier: 1.8,
@@ -58,7 +58,7 @@ export const GAME_CONFIG = {
   /** Niveau maximum atteignable pour chaque amélioration globale. */
   maxUpgradeLevel: 20,
 
-  /** Production hors ligne plafonnée à 8 heures (mécanique non branchée en étape 1). */
+  /** Production hors ligne plafonnée à 8 heures par absence. */
   offlineCapSeconds: 8 * 60 * 60,
 
   /** Objectif de production pour déclencher PROJECT OMEGA, en CR/s. */

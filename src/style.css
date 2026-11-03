@@ -298,7 +298,8 @@ body::after {
   gap: 8px 10px;
 }
 
-.machine__buy {
+.machine__buy,
+.upgrade__buy {
   padding: 8px 14px;
   font: inherit;
   font-size: clamp(0.68rem, 2.6vw, 0.76rem);
@@ -310,25 +311,29 @@ body::after {
   cursor: pointer;
 }
 
-.machine__buy:hover:not(:disabled) {
+.machine__buy:hover:not(:disabled),
+.upgrade__buy:hover:not(:disabled) {
   background-color: rgba(79, 224, 135, 0.18);
 }
 
-.machine__buy:disabled {
+.machine__buy:disabled,
+.upgrade__buy:disabled {
   color: var(--green-muted);
   border-color: var(--green-line);
   background-color: transparent;
   cursor: not-allowed;
 }
 
-.machine__eta {
+.machine__eta,
+.upgrade__eta {
   font-size: clamp(0.62rem, 2.4vw, 0.7rem);
   letter-spacing: 0.08em;
   color: var(--green-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.machine__eta--ready {
+.machine__eta--ready,
+.upgrade__eta--ready {
   color: var(--green-strong);
 }
 
@@ -347,4 +352,191 @@ button {
   .balance__value {
     transition: color 120ms linear;
   }
+}
+
+/* L'attribut hidden l'emporte sur les display: flex/grid des blocs. */
+[hidden] {
+  display: none !important;
+}
+
+/* ---- Panneau UPGRADES ---- */
+
+.upgrades {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upgrade {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--green-line);
+  background-color: rgba(79, 224, 135, 0.02);
+}
+
+.upgrade__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.upgrade__name {
+  font-size: clamp(0.72rem, 2.8vw, 0.8rem);
+  letter-spacing: 0.1em;
+  color: var(--green-strong);
+  text-transform: uppercase;
+}
+
+.upgrade__level {
+  font-size: clamp(0.64rem, 2.6vw, 0.72rem);
+  letter-spacing: 0.1em;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+.upgrade__max {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--green-strong);
+}
+
+.upgrade__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+}
+
+.upgrade__stat {
+  min-width: 0;
+}
+
+.upgrade__stat dt {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--green-muted);
+}
+
+.upgrade__stat dd {
+  margin: 0;
+  font-size: clamp(0.7rem, 2.8vw, 0.78rem);
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.upgrade__action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+/* ---- Rapport de retour hors ligne ---- */
+
+.report {
+  margin-top: clamp(14px, 3vw, 20px);
+  padding: 12px 14px;
+  border: 1px solid var(--green);
+  background-color: rgba(79, 224, 135, 0.07);
+  box-shadow: inset 0 0 18px rgba(79, 224, 135, 0.08);
+}
+
+.report__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.report__title {
+  margin: 0;
+  font-size: clamp(0.72rem, 2.6vw, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--green-strong);
+}
+
+.report__close {
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  background-color: transparent;
+  border: 1px solid var(--green-line);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.report__close:hover {
+  border-color: var(--green);
+}
+
+.report__lines {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+
+.report__lines > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.report__lines dt {
+  font-size: clamp(0.66rem, 2.6vw, 0.74rem);
+  letter-spacing: 0.1em;
+  color: var(--green-muted);
+}
+
+.report__lines dd {
+  margin: 0;
+  font-size: clamp(0.68rem, 2.6vw, 0.76rem);
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+.report__cap {
+  margin: 8px 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--green-strong);
+}
+
+/* ---- Pied de page ---- */
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: clamp(18px, 4vw, 28px);
+  padding-top: 12px;
+  border-top: 1px solid var(--green-line);
+}
+
+.link-button {
+  padding: 6px 2px;
+  font: inherit;
+  font-size: clamp(0.64rem, 2.4vw, 0.72rem);
+  letter-spacing: 0.1em;
+  color: var(--green-muted);
+  background-color: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--green-line);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--green);
+  border-bottom-color: var(--green);
 }
