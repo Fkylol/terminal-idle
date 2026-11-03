@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "node scripts/regression.ts",
     "simulate": "node scripts/simulate.ts"
   },
   "devDependencies": {

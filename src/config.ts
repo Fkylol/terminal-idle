@@ -25,8 +25,8 @@ export const GAME_CONFIG = {
     { id: 'station-de-travail', name: 'Station de travail', production: 5, basePrice: 10_000 },
     { id: 'serveur', name: 'Serveur', production: 25, basePrice: 100_000 },
     { id: 'rack', name: 'Rack', production: 150, basePrice: 1_000_000 },
-    { id: 'cluster', name: 'Cluster', production: 1_000, basePrice: 10_000_000 },
-    { id: 'supercalculateur', name: 'Supercalculateur', production: 10_000, basePrice: 100_000_000 },
+    { id: 'cluster', name: 'Cluster', production: 1_000, basePrice: 5_000_000 },
+    { id: 'supercalculateur', name: 'Supercalculateur', production: 10_000, basePrice: 30_000_000 },
   ],
 
   /** Chaque exemplaire supplémentaire d'une machine coûte 15 % de plus. */
