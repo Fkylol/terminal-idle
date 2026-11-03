@@ -1,15 +1,28 @@
-import { GAME_CONFIG, type MachineId, type UpgradeId } from './config'
+import { GAME_CONFIG, type MachineId, type UpgradeId } from './config.ts'
 import {
   getOfferedCount,
+  MAX_LOG_ENTRIES,
   refreshUnlockedMachines,
+  type GameLogEntry,
   type GameState,
-} from './game'
+} from './game.ts'
 
 /** Clé localStorage de la sauvegarde. */
 export const SAVE_KEY = 'terminal-idle:save'
 
-/** Version du format de sauvegarde : une version inconnue est ignorée. */
-export const SAVE_VERSION = 1
+/**
+ * Version du format de sauvegarde.
+ * V1 : sans journal système.
+ * V2 : ajoute le journal (20 derniers événements).
+ * Une sauvegarde V1 valide reste lisible et est migrée à la volée.
+ */
+export const SAVE_VERSION = 2
+
+/** Versions encore acceptées au chargement. */
+export const MIN_SUPPORTED_SAVE_VERSION = 1
+
+/** Longueur maximale d'une ligne de journal relue depuis le stockage. */
+const MAX_LOG_TEXT_LENGTH = 160
 
 /** Contenu sérialisé dans localStorage. */
 export interface SaveData {
@@ -23,12 +36,15 @@ export interface SaveData {
   playtimeSeconds: number
   lastSavedAt: number
   omegaVictory: boolean
+  log: GameLogEntry[]
 }
 
 /** Sauvegarde restaurée, avec l'horodatage du dernier instant crédité. */
 export interface SavedGame {
   state: GameState
   lastSavedAt: number
+  /** Version du fichier lu : 1 si la partie a été migrée depuis la V1. */
+  sourceVersion: number
 }
 
 /** Bilan d'une absence, calculé uniquement à partir de valeurs finies. */
@@ -90,6 +106,44 @@ function readCountRecord<T extends string>(
   return result
 }
 
+/**
+ * Journal : donnée purement informative, donc relue de façon tolérante.
+ * Les entrées malformées sont ignorées et seules les 20 dernières conservées ;
+ * aucun texte relu n'est interprété.
+ */
+function readLog(value: unknown, version: number): GameLogEntry[] | null {
+  if (version === MIN_SUPPORTED_SAVE_VERSION) {
+    // V1 : le journal n'existait pas encore, la partie migre avec un journal vide.
+    return []
+  }
+
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  const entries: GameLogEntry[] = []
+
+  for (const raw of value) {
+    if (!isPlainObject(raw)) {
+      continue
+    }
+
+    if (!isFiniteNumber(raw.at) || raw.at < 0 || typeof raw.text !== 'string') {
+      continue
+    }
+
+    const text = raw.text.trim().slice(0, MAX_LOG_TEXT_LENGTH)
+
+    if (text.length === 0) {
+      continue
+    }
+
+    entries.push({ at: raw.at, text })
+  }
+
+  return entries.slice(-MAX_LOG_ENTRIES)
+}
+
 /** État prêt à être écrit dans localStorage (aucune référence partagée). */
 export function serializeGame(state: GameState, lastSavedAt: number): SaveData {
   return {
@@ -103,16 +157,17 @@ export function serializeGame(state: GameState, lastSavedAt: number): SaveData {
     playtimeSeconds: state.playtimeSeconds,
     lastSavedAt,
     omegaVictory: state.omegaVictory,
+    log: state.log.map((entry) => ({ at: entry.at, text: entry.text })),
   }
 }
 
 /**
- * Valide et reconstruit une sauvegarde. Renvoie null si la moindre donnée est
- * invalide : l'appelant démarre alors une nouvelle partie.
+ * Valide et reconstruit une sauvegarde. Renvoie null si la moindre donnée
+ * structurante est invalide : l'appelant démarre alors une nouvelle partie.
  *
  * Le contenu de localStorage est traité comme une donnée non fiable et n'est
  * jamais exécuté : seules des valeurs numériques et des identifiants connus
- * sont acceptés.
+ * sont acceptés. Une sauvegarde V1 est migrée vers le format courant.
  */
 export function parseSave(raw: string, now: number): SavedGame | null {
   let data: unknown
@@ -127,9 +182,16 @@ export function parseSave(raw: string, now: number): SavedGame | null {
     return null
   }
 
-  if (data.version !== SAVE_VERSION) {
+  const version = data.version
+
+  if (
+    version !== SAVE_VERSION &&
+    !(version === MIN_SUPPORTED_SAVE_VERSION && version < SAVE_VERSION)
+  ) {
     return null
   }
+
+  const sourceVersion = version as number
 
   if (!isFiniteNumber(data.credits) || data.credits < 0) {
     return null
@@ -205,6 +267,12 @@ export function parseSave(raw: string, now: number): SavedGame | null {
     unlockedMachines.add(entry as MachineId)
   }
 
+  const log = readLog(data.log, sourceVersion)
+
+  if (!log) {
+    return null
+  }
+
   const state: GameState = {
     credits: data.credits,
     totalCreditsEarned: data.totalCreditsEarned,
@@ -214,13 +282,14 @@ export function parseSave(raw: string, now: number): SavedGame | null {
     upgrades,
     playtimeSeconds: data.playtimeSeconds,
     omegaVictory: data.omegaVictory,
+    log,
     lastTick: now,
   }
 
   // Un déblocage déjà mérité par les crédits gagnés ne doit jamais manquer.
   refreshUnlockedMachines(state)
 
-  return { state, lastSavedAt: data.lastSavedAt }
+  return { state, lastSavedAt: data.lastSavedAt, sourceVersion }
 }
 
 /**
@@ -252,7 +321,8 @@ export function computeOfflineGain(
  * horodatage, pour que ces gains ne soient jamais comptés deux fois.
  */
 export function applyOfflineGain(state: GameState, report: OfflineReport): void {
-  if (report.creditsEarned <= 0) {
+  // Après la victoire OMEGA, la production est arrêtée : plus aucun gain.
+  if (state.omegaVictory || report.creditsEarned <= 0) {
     return
   }
 

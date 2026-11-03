@@ -1,13 +1,16 @@
 import './style.css'
-import { GAME_CONFIG, type MachineId, type UpgradeId } from './config'
+import { GAME_CONFIG, type MachineId, type UpgradeId } from './config.ts'
 import {
   advanceGame,
   buyMachine,
   buyUpgrade,
   createGameState,
+  executeOmega,
+  getEffectiveProduction,
   getMachine,
   getMachineProduction,
   getNextPrice,
+  getOwnedMachineTotal,
   getProductionPerSecond,
   getPurchasePlan,
   getTimeToAfford,
@@ -16,9 +19,10 @@ import {
   getUpgradeLevel,
   isMachineUnlocked,
   isUpgradeMaxed,
+  pushLog,
   type BuyMode,
   type GameState,
-} from './game'
+} from './game.ts'
 import {
   applyOfflineGain,
   clearGameSave,
@@ -26,7 +30,7 @@ import {
   loadGame,
   saveGame,
   type OfflineReport,
-} from './save'
+} from './save.ts'
 
 /** Intervalle de sauvegarde automatique. */
 const AUTOSAVE_INTERVAL_MS = 10_000
@@ -43,10 +47,12 @@ function requireElement<T extends HTMLElement>(selector: string, root: ParentNod
   return element
 }
 
+const statusElement = requireElement<HTMLElement>('[data-status]')
 const creditsElement = requireElement<HTMLElement>('[data-credits]')
 const productionElement = requireElement<HTMLElement>('[data-production]')
 const machinesList = requireElement<HTMLUListElement>('[data-machines]')
 const upgradesList = requireElement<HTMLUListElement>('[data-upgrades]')
+const logList = requireElement<HTMLUListElement>('[data-log]')
 const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-mode]')]
 
 const reportElement = requireElement<HTMLElement>('[data-report]')
@@ -57,9 +63,33 @@ const reportCap = requireElement<HTMLElement>('[data-report-cap]')
 const reportClose = requireElement<HTMLButtonElement>('[data-report-close]')
 const resetButton = requireElement<HTMLButtonElement>('[data-reset]')
 
+const omegaProduction = requireElement<HTMLElement>('[data-omega-production]')
+const omegaGoal = requireElement<HTMLElement>('[data-omega-goal]')
+const omegaBar = requireElement<HTMLElement>('[data-omega-bar]')
+const omegaFill = requireElement<HTMLElement>('[data-omega-fill]')
+const omegaPercent = requireElement<HTMLElement>('[data-omega-percent]')
+const omegaLaunch = requireElement<HTMLButtonElement>('[data-omega-launch]')
+const omegaStatus = requireElement<HTMLElement>('[data-omega-status]')
+
+const victoryElement = requireElement<HTMLElement>('[data-victory]')
+const victoryClose = requireElement<HTMLButtonElement>('[data-victory-close]')
+const victoryReset = requireElement<HTMLButtonElement>('[data-victory-reset]')
+const statEarned = requireElement<HTMLElement>('[data-stat-earned]')
+const statProduction = requireElement<HTMLElement>('[data-stat-production]')
+const statMachines = requireElement<HTMLElement>('[data-stat-machines]')
+const statOptimisation = requireElement<HTMLElement>('[data-stat-optimisation]')
+const statOverclocking = requireElement<HTMLElement>('[data-stat-overclocking]')
+const statPlaytime = requireElement<HTMLElement>('[data-stat-playtime]')
+
 const creditFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 const rateFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
 const percentFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+const logFormatter = new Intl.DateTimeFormat('fr-FR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
 
 /* ---- Restauration de la partie ---- */
 
@@ -73,16 +103,23 @@ if (saved) {
   state = saved.state
   lastSavedAt = saved.lastSavedAt
 
-  const report = computeOfflineGain(
-    getProductionPerSecond(state),
-    saved.lastSavedAt,
-    now,
-    GAME_CONFIG.offlineCapSeconds,
-  )
-  applyOfflineGain(state, report)
+  // Après la victoire, la production est arrêtée : aucune absence à créditer.
+  if (!state.omegaVictory) {
+    const report = computeOfflineGain(
+      getProductionPerSecond(state),
+      saved.lastSavedAt,
+      now,
+      GAME_CONFIG.offlineCapSeconds,
+    )
+    applyOfflineGain(state, report)
 
-  if (report.creditsEarned > 0 && report.absentSeconds >= REPORT_MIN_ABSENT_SECONDS) {
-    pendingReport = report
+    if (report.creditsEarned > 0 && report.absentSeconds >= REPORT_MIN_ABSENT_SECONDS) {
+      pendingReport = report
+      pushLog(
+        state,
+        `SESSION RESTORED: ${formatDuration(report.absentSeconds)} hors ligne (+${formatCredits(Math.floor(report.creditsEarned))} CR)`,
+      )
+    }
   }
 
   lastSavedAt = now
@@ -95,23 +132,6 @@ if (saved) {
 state.lastTick = performance.now()
 
 let mode: BuyMode = '1'
-
-/* ---- Sauvegarde ---- */
-
-/**
- * Crédite la production jusqu'à maintenant, puis enregistre l'état avec
- * l'horodatage de ce même instant : les gains postérieurs à la sauvegarde
- * seront comptés une seule fois, au retour du joueur.
- */
-function persist(): void {
-  advanceGame(state, performance.now())
-  lastSavedAt = Date.now()
-  saveGame(state, lastSavedAt)
-}
-
-// Première écriture immédiate : les gains hors ligne viennent d'être versés et
-// ne doivent jamais être attribués une deuxième fois.
-persist()
 
 /* ---- Mise en forme ---- */
 
@@ -147,6 +167,23 @@ function formatDuration(seconds: number): string {
 function formatCredits(value: number): string {
   return creditFormatter.format(value)
 }
+
+/* ---- Sauvegarde ---- */
+
+/**
+ * Crédite la production jusqu'à maintenant, puis enregistre l'état avec
+ * l'horodatage de ce même instant : les gains postérieurs à la sauvegarde
+ * seront comptés une seule fois, au retour du joueur.
+ */
+function persist(): void {
+  advanceGame(state, performance.now())
+  lastSavedAt = Date.now()
+  saveGame(state, lastSavedAt)
+}
+
+// Première écriture immédiate : les gains hors ligne viennent d'être versés et
+// ne doivent jamais être attribués une deuxième fois.
+persist()
 
 /* ---- Machines ---- */
 
@@ -225,7 +262,7 @@ function renderMachine(view: MachineView): void {
   const plan = getPurchasePlan(state, view.id, mode)
   const count = plan.count > 0 ? plan.count : 1
   const cost = plan.count > 0 ? plan.cost : getNextPrice(state, view.id)
-  const affordable = plan.count > 0 && plan.cost <= state.credits
+  const affordable = !state.omegaVictory && plan.count > 0 && plan.cost <= state.credits
 
   setText(view.owned, `×${formatCredits(state.ownedMachines[view.id])}`)
   setText(view.unit, `${rateFormatter.format(machine.production)} CR/s`)
@@ -237,7 +274,12 @@ function renderMachine(view: MachineView): void {
   view.button.disabled = !affordable
 
   view.eta.classList.toggle('machine__eta--ready', affordable)
-  setText(view.eta, affordable ? 'Disponible' : `≈ ${formatDuration(getTimeToAfford(state, cost))}`)
+
+  if (state.omegaVictory) {
+    setText(view.eta, 'SYSTEM COMPLETE')
+  } else {
+    setText(view.eta, affordable ? 'Disponible' : `≈ ${formatDuration(getTimeToAfford(state, cost))}`)
+  }
 }
 
 /* ---- Améliorations ---- */
@@ -318,13 +360,117 @@ function renderUpgrade(view: UpgradeView): void {
   }
 
   const cost = getUpgradeCost(state, view.id)
-  const affordable = cost <= state.credits
+  const affordable = !state.omegaVictory && cost <= state.credits
 
   setText(view.price, `${formatCredits(cost)} CR`)
   view.button.textContent = `ACHETER NIVEAU ${level + 1}`
   view.button.disabled = !affordable
   view.eta.classList.toggle('upgrade__eta--ready', affordable)
-  setText(view.eta, affordable ? 'Disponible' : `≈ ${formatDuration(getTimeToAfford(state, cost))}`)
+
+  if (state.omegaVictory) {
+    setText(view.eta, 'SYSTEM COMPLETE')
+  } else {
+    setText(view.eta, affordable ? 'Disponible' : `≈ ${formatDuration(getTimeToAfford(state, cost))}`)
+  }
+}
+
+/* ---- PROJECT OMEGA ---- */
+
+function renderOmega(): void {
+  const production = getProductionPerSecond(state)
+  const goal = GAME_CONFIG.omegaGoal
+  const percent = Math.min(100, Math.max(0, (production / goal) * 100))
+  const ready = !state.omegaVictory && production >= goal
+
+  setText(omegaProduction, rateFormatter.format(production))
+  setText(omegaGoal, formatCredits(goal))
+  setText(omegaPercent, `${percentFormatter.format(percent)} %`)
+
+  omegaFill.style.width = `${percent}%`
+  omegaBar.setAttribute('aria-valuenow', String(Math.floor(percent)))
+  omegaLaunch.disabled = !ready
+
+  if (state.omegaVictory) {
+    setText(omegaStatus, 'SYSTEM COMPLETE — MISSION ACCOMPLISHED')
+  } else if (ready) {
+    setText(omegaStatus, 'SEUIL ATTEINT — EXÉCUTION AUTORISÉE')
+  } else {
+    setText(
+      omegaStatus,
+      `// SEUIL NON ATTEINT : ${rateFormatter.format(goal - production)} CR/s restants`,
+    )
+  }
+}
+
+/* ---- Journal système ---- */
+
+let logSignature = ''
+
+function renderLog(): void {
+  const last = state.log[state.log.length - 1]
+  const signature = `${state.log.length}|${last?.at ?? 0}|${last?.text ?? ''}`
+
+  if (signature === logSignature) {
+    return
+  }
+
+  logSignature = signature
+
+  if (state.log.length === 0) {
+    const empty = document.createElement('li')
+    empty.className = 'log__empty'
+    empty.textContent = '// aucun événement enregistré'
+    logList.replaceChildren(empty)
+    return
+  }
+
+  logList.replaceChildren(
+    ...state.log.map((entry) => {
+      const item = document.createElement('li')
+      item.className = 'log__entry'
+
+      const time = document.createElement('time')
+      time.className = 'log__time'
+      time.dateTime = new Date(entry.at).toISOString()
+      time.textContent = `[${logFormatter.format(entry.at)}]`
+
+      const text = document.createElement('span')
+      text.className = 'log__text'
+      text.textContent = entry.text
+
+      item.append(time, text)
+
+      return item
+    }),
+  )
+}
+
+/* ---- Écran de victoire ---- */
+
+function showVictory(): void {
+  setText(statEarned, `${formatCredits(Math.floor(state.totalCreditsEarned))} CR`)
+  setText(statProduction, `${rateFormatter.format(getProductionPerSecond(state))} CR/s`)
+  setText(statMachines, formatCredits(getOwnedMachineTotal(state)))
+  setText(statOptimisation, `${getUpgradeLevel(state, 'optimisation')} / ${GAME_CONFIG.maxUpgradeLevel}`)
+  setText(statOverclocking, `${getUpgradeLevel(state, 'overclocking')} / ${GAME_CONFIG.maxUpgradeLevel}`)
+  setText(statPlaytime, formatDuration(state.playtimeSeconds))
+
+  victoryElement.hidden = false
+  victoryClose.focus()
+}
+
+function hideVictory(): void {
+  victoryElement.hidden = true
+}
+
+function handleOmega(): void {
+  if (!executeOmega(state, performance.now())) {
+    return
+  }
+
+  persist()
+  render()
+  showVictory()
 }
 
 /* ---- Rapport de retour ---- */
@@ -345,7 +491,8 @@ function hideReport(): void {
 
 function render(): void {
   setText(creditsElement, formatCredits(Math.floor(state.credits)))
-  setText(productionElement, rateFormatter.format(getProductionPerSecond(state)))
+  setText(productionElement, rateFormatter.format(getEffectiveProduction(state)))
+  setText(statusElement, state.omegaVictory ? 'SYSTEM COMPLETE' : 'SYSTEM ONLINE')
 
   for (const view of machineViews) {
     renderMachine(view)
@@ -354,6 +501,9 @@ function render(): void {
   for (const view of upgradeViews) {
     renderUpgrade(view)
   }
+
+  renderOmega()
+  renderLog()
 }
 
 function setMode(nextMode: BuyMode): void {
@@ -381,6 +531,7 @@ function startNewGame(): void {
   state = createGameState(performance.now())
   lastSavedAt = Date.now()
   hideReport()
+  hideVictory()
   setMode('1')
   persist()
   render()
@@ -400,6 +551,9 @@ for (const button of modeButtons) {
 
 reportClose.addEventListener('click', hideReport)
 resetButton.addEventListener('click', startNewGame)
+omegaLaunch.addEventListener('click', handleOmega)
+victoryClose.addEventListener('click', hideVictory)
+victoryReset.addEventListener('click', startNewGame)
 
 window.addEventListener('pagehide', persist)
 document.addEventListener('visibilitychange', () => {
@@ -411,6 +565,10 @@ window.setInterval(persist, AUTOSAVE_INTERVAL_MS)
 
 if (pendingReport) {
   showReport(pendingReport)
+}
+
+if (state.omegaVictory) {
+  showVictory()
 }
 
 function frame(now: number): void {

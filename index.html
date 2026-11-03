@@ -11,7 +11,7 @@
     <main class="terminal">
       <header class="topbar">
         <h1 class="topbar__title">TERMINAL IDLE</h1>
-        <p class="topbar__status">SYSTEM ONLINE</p>
+        <p class="topbar__status" data-status>SYSTEM ONLINE</p>
       </header>
 
       <div class="report" data-report hidden role="status" aria-live="polite">
@@ -55,14 +55,70 @@
 
         <section class="panel" aria-labelledby="omega-title">
           <h2 class="panel__title" id="omega-title">PROJECT OMEGA</h2>
-          <p class="panel__placeholder">// module hors ligne — étape suivante</p>
+
+          <dl class="omega__stats">
+            <div class="omega__stat">
+              <dt>PRODUCTION</dt>
+              <dd><span data-omega-production>0</span> CR/s</dd>
+            </div>
+            <div class="omega__stat">
+              <dt>OBJECTIF</dt>
+              <dd><span data-omega-goal>100 000</span> CR/s</dd>
+            </div>
+          </dl>
+
+          <div class="omega__progress">
+            <div
+              class="omega__bar"
+              data-omega-bar
+              role="progressbar"
+              aria-label="Progression vers l'objectif OMEGA"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <div class="omega__fill" data-omega-fill></div>
+            </div>
+            <p class="omega__percent" data-omega-percent>0 %</p>
+          </div>
+
+          <button type="button" class="omega__launch" data-omega-launch disabled>EXECUTE OMEGA.EXE</button>
+          <p class="omega__status" data-omega-status>// SEUIL NON ATTEINT</p>
         </section>
       </div>
+
+      <section class="panel panel--log" aria-labelledby="log-title">
+        <h2 class="panel__title" id="log-title">SYSTEM LOG</h2>
+        <ul class="log" data-log aria-live="polite"></ul>
+      </section>
 
       <footer class="footer">
         <button type="button" class="link-button" data-reset>Nouvelle partie</button>
       </footer>
     </main>
+
+    <div class="victory" data-victory hidden role="dialog" aria-modal="true" aria-labelledby="victory-title">
+      <div class="victory__box">
+        <p class="victory__line">&gt; [OMEGA.EXE]</p>
+        <p class="victory__line">&gt; INITIALIZING...</p>
+        <p class="victory__line">&gt; SYSTEM COMPLETE</p>
+        <p class="victory__line victory__title" id="victory-title">&gt; MISSION ACCOMPLISHED</p>
+
+        <dl class="victory__stats">
+          <div><dt>CRÉDITS GAGNÉS</dt><dd data-stat-earned>0 CR</dd></div>
+          <div><dt>PRODUCTION FINALE</dt><dd data-stat-production>0 CR/s</dd></div>
+          <div><dt>MACHINES POSSÉDÉES</dt><dd data-stat-machines>0</dd></div>
+          <div><dt>OPTIMISATION LOGICIELLE</dt><dd data-stat-optimisation>0 / 20</dd></div>
+          <div><dt>OVERCLOCKING</dt><dd data-stat-overclocking>0 / 20</dd></div>
+          <div><dt>TEMPS DE PRODUCTION</dt><dd data-stat-playtime>0 s</dd></div>
+        </dl>
+
+        <div class="victory__actions">
+          <button type="button" class="victory__close" data-victory-close>RETOUR AU TERMINAL</button>
+          <button type="button" class="link-button" data-victory-reset>Nouvelle partie</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

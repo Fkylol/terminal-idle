@@ -4,7 +4,7 @@ import {
   type MachineId,
   type Upgrade,
   type UpgradeId,
-} from './config'
+} from './config.ts'
 
 /** Mode d'achat global sélectionné au-dessus de la liste des machines. */
 export type BuyMode = '1' | '10' | 'max'
@@ -14,6 +14,15 @@ export interface PurchasePlan {
   count: number
   cost: number
 }
+
+/** Une ligne du journal système (horodatage en millisecondes epoch). */
+export interface GameLogEntry {
+  at: number
+  text: string
+}
+
+/** Le journal ne conserve que les 20 derniers événements. */
+export const MAX_LOG_ENTRIES = 20
 
 /** État complet du jeu. */
 export interface GameState {
@@ -30,8 +39,10 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>
   /** Secondes de production cumulées depuis le début de la partie. */
   playtimeSeconds: number
-  /** Réservé à l'étape 4 (victoire OMEGA). */
+  /** Victoire OMEGA : définitive, arrête la production et les achats. */
   omegaVictory: boolean
+  /** Journal système, du plus ancien au plus récent. */
+  log: GameLogEntry[]
   /** Dernier instant (performance.now) jusqu'auquel la production a été créditée. */
   lastTick: number
 }
@@ -59,6 +70,15 @@ export function getUpgrade(upgradeId: UpgradeId): Upgrade {
   }
 
   return upgrade
+}
+
+/** Ajoute un événement au journal et ne garde que les 20 derniers. */
+export function pushLog(state: GameState, text: string, at: number = Date.now()): void {
+  state.log.push({ at, text })
+
+  if (state.log.length > MAX_LOG_ENTRIES) {
+    state.log.splice(0, state.log.length - MAX_LOG_ENTRIES)
+  }
 }
 
 /** Exemplaires offerts au démarrage pour une machine (1 vieux PC). */
@@ -145,7 +165,7 @@ export function getTimeToAfford(state: GameState, cost: number): number {
     return 0
   }
 
-  const production = getProductionPerSecond(state)
+  const production = getEffectiveProduction(state)
 
   if (production <= 0) {
     return Number.POSITIVE_INFINITY
@@ -206,16 +226,40 @@ export function getProductionMultiplier(state: GameState): number {
   return multiplier
 }
 
-/** Production totale affichée : base des machines × bonus des améliorations. */
+/** Production théorique : base des machines × bonus des améliorations. */
 export function getProductionPerSecond(state: GameState): number {
   return getBaseProduction(state) * getProductionMultiplier(state)
+}
+
+/**
+ * Production réellement créditée : nulle après la victoire OMEGA, où plus rien
+ * ne doit s'accumuler, même si la production atteinte reste affichée.
+ */
+export function getEffectiveProduction(state: GameState): number {
+  return state.omegaVictory ? 0 : getProductionPerSecond(state)
+}
+
+/** Total des exemplaires possédés, toutes machines confondues. */
+export function getOwnedMachineTotal(state: GameState): number {
+  let total = 0
+
+  for (const machine of GAME_CONFIG.machines) {
+    total += state.ownedMachines[machine.id]
+  }
+
+  return total
+}
+
+/** Objectif OMEGA atteint : le bouton d'exécution peut être activé. */
+export function isOmegaReady(state: GameState): boolean {
+  return getProductionPerSecond(state) >= GAME_CONFIG.omegaGoal
 }
 
 /**
  * Débloque définitivement les machines dont le seuil de crédits gagnés est
  * atteint. Un déblocage n'est jamais retiré, même si le joueur dépense tout.
  */
-export function refreshUnlockedMachines(state: GameState): void {
+export function refreshUnlockedMachines(state: GameState, at: number = Date.now()): void {
   for (const machine of GAME_CONFIG.machines) {
     if (state.unlockedMachines.has(machine.id)) {
       continue
@@ -223,6 +267,7 @@ export function refreshUnlockedMachines(state: GameState): void {
 
     if (state.totalCreditsEarned >= machine.basePrice) {
       state.unlockedMachines.add(machine.id)
+      pushLog(state, `HARDWARE UNLOCKED: ${machine.name}`, at)
     }
   }
 }
@@ -257,7 +302,7 @@ export function createGameState(now: number): GameState {
     }
   }
 
-  return {
+  const state: GameState = {
     credits: GAME_CONFIG.startingCredits,
     totalCreditsEarned: 0,
     ownedMachines,
@@ -266,8 +311,13 @@ export function createGameState(now: number): GameState {
     upgrades,
     playtimeSeconds: 0,
     omegaVictory: false,
+    log: [],
     lastTick: now,
   }
+
+  pushLog(state, 'BOOT: nouvelle partie')
+
+  return state
 }
 
 /**
@@ -275,8 +325,14 @@ export function createGameState(now: number): GameState {
  *
  * Les crédits sont calculés à partir du temps réellement écoulé entre deux
  * appels : le résultat ne dépend donc pas du nombre d'images affichées.
+ * Après la victoire OMEGA, la production est définitivement arrêtée.
  */
 export function advanceGame(state: GameState, now: number): void {
+  if (state.omegaVictory) {
+    state.lastTick = now
+    return
+  }
+
   const elapsedSeconds = Math.max(0, (now - state.lastTick) / 1000)
 
   if (elapsedSeconds <= 0) {
@@ -296,8 +352,9 @@ export function advanceGame(state: GameState, now: number): void {
  * `now` avant de changer les quantités, pour ne pas appliquer la nouvelle
  * production de façon rétroactive.
  *
- * Renvoie false si la machine est verrouillée, le mode MAX introuvable ou si
- * le solde est insuffisant : dans ce cas l'état n'est pas modifié.
+ * Renvoie false si la machine est verrouillée, si la partie est gagnée, si le
+ * mode MAX ne trouve rien ou si le solde est insuffisant : dans ce cas l'état
+ * n'est pas modifié.
  */
 export function buyMachine(
   state: GameState,
@@ -307,7 +364,7 @@ export function buyMachine(
 ): boolean {
   advanceGame(state, now)
 
-  if (!isMachineUnlocked(state, machineId)) {
+  if (state.omegaVictory || !isMachineUnlocked(state, machineId)) {
     return false
   }
 
@@ -321,6 +378,8 @@ export function buyMachine(
   state.ownedMachines[machineId] += plan.count
   state.purchasedMachines[machineId] += plan.count
 
+  pushLog(state, `HARDWARE PURCHASED: ${getMachine(machineId).name} ×${plan.count}`)
+
   return true
 }
 
@@ -332,7 +391,7 @@ export function buyMachine(
 export function buyUpgrade(state: GameState, upgradeId: UpgradeId, now: number): boolean {
   advanceGame(state, now)
 
-  if (isUpgradeMaxed(state, upgradeId)) {
+  if (state.omegaVictory || isUpgradeMaxed(state, upgradeId)) {
     return false
   }
 
@@ -344,6 +403,28 @@ export function buyUpgrade(state: GameState, upgradeId: UpgradeId, now: number):
 
   state.credits -= cost
   state.upgrades[upgradeId] += 1
+
+  pushLog(state, `UPGRADE: ${getUpgrade(upgradeId).name} LVL ${state.upgrades[upgradeId]}`)
+
+  return true
+}
+
+/**
+ * Exécute OMEGA.EXE : crédite la production écoulée, enregistre la victoire
+ * définitivement et arrête la production. Ne s'exécute qu'une seule fois et
+ * seulement si l'objectif de production est atteint.
+ */
+export function executeOmega(state: GameState, now: number): boolean {
+  advanceGame(state, now)
+
+  if (state.omegaVictory || !isOmegaReady(state)) {
+    return false
+  }
+
+  state.omegaVictory = true
+  state.lastTick = now
+
+  pushLog(state, 'OMEGA.EXE: SYSTEM COMPLETE')
 
   return true
 }
